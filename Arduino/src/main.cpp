@@ -44,19 +44,15 @@ String clientId = "LetterBox";
 
 bool stateTop = false;
 bool stateFront = false;
-bool lastStateTop = false;
-bool lastStateFront = false;
 
 #define LEDPIN LED_BUILTIN //  D8
 #define top D7
 #define front D6
 #define LED D8
 
-int scanDelay = 1000;
 
 int batterySensor = A0;
-bool batterySend = false;
-
+bool firstData = true;
 unsigned long previousMillis = 0;
 
 void reconnect() {
@@ -91,26 +87,8 @@ void reconnect() {
   }
 }
 
-void setup() {
-  Serial.begin(115200);
-  Serial.println("Start program");
-  
-  pinMode(LEDPIN,OUTPUT);
-  digitalWrite(LEDPIN,false);
-  
-  pinMode(top, INPUT); 
-  pinMode(front, INPUT);
-
-  pinMode(LED,OUTPUT);
-  digitalWrite(LED,false);
-  stateTop = digitalRead(top);
-  stateFront = digitalRead(front);
-  
-  Serial.print("stateFront: ");
-  Serial.println(stateFront);
-  digitalWrite(LED,stateFront);
-
-  if (!WiFi.config(local_IP, gateway, subnet)) {
+void setup_wifi() {
+    if (!WiFi.config(local_IP, gateway, subnet)) {
     Serial.println("STA Failed to configure");
   }
 
@@ -135,6 +113,28 @@ void setup() {
   Serial.println(WiFi.gatewayIP());
   
   client.setServer(mqtt_server, mqtt_port);
+}
+
+void setup() {
+  Serial.begin(115200);
+  Serial.println("Start program");
+  
+  pinMode(LEDPIN,OUTPUT);
+  digitalWrite(LEDPIN,false);
+  
+  pinMode(top, INPUT); 
+  pinMode(front, INPUT);
+
+  pinMode(LED,OUTPUT);
+  digitalWrite(LED,false);
+  stateTop = !digitalRead(top);
+  stateFront = !digitalRead(front);
+  
+  if (stateFront) {
+   digitalWrite(LED,true);
+  }
+
+  setup_wifi();
 
 
 }
@@ -146,49 +146,51 @@ void loop() {
   }
   client.loop();
 
-  
-
-  if (millis() - previousMillis > 1000) {
-    previousMillis = millis();
-    stateTop = !digitalRead(top);
-    stateFront = !digitalRead(front);
-
-
-  
-    unsigned int raw=0;
-    float volt=0.0;
-    
-    if ( batterySend == false ) {
-      raw = analogRead(batterySensor);
-      volt = raw / 1023.0;
-      String battery = String(volt*4.2);
-      Serial.print("Battery:");
-      Serial.println(battery);
-
-      client.publish(strTopicBattery.c_str(), battery.c_str() );
-      batterySend = true;
-    }
-
+  if ( firstData ) {
+    Serial.println("First shot:");
     Serial.print("FRONT: ");
     Serial.println(stateFront);
     Serial.print("TOP  : ");
     Serial.println(stateTop);
+    Serial.println("------------------------");
+    client.publish(strTopicTop.c_str(), ( stateTop ? "1":"0" ) );
+    client.publish(strTopicFront.c_str(), ( stateTop ? "1":"0" ) ); 
+ 
+    unsigned int raw=0;
+    float volt=0.0;
+    
+    raw = analogRead(batterySensor);
+    volt = raw / 1023.0;
+    String battery = String(volt*4.2);
+    Serial.print("Battery:");
+    Serial.println(battery);
 
-    if ( stateTop != lastStateTop) {
-      client.publish(strTopicTop.c_str(), ( stateTop ? "1":"0" ) );
-      lastStateTop = stateTop;
-    }
-    
-    if ( stateFront != lastStateFront) {
-      client.publish(strTopicFront.c_str(), ( stateFront ? "1":"0" ) );
-      lastStateFront = stateFront;
-    }
-    
-    digitalWrite(LED,stateFront);
+    client.publish(strTopicBattery.c_str(), battery.c_str() );
+    firstData = false;
+        
+  }
+
+  
+
+  if (millis() - previousMillis > 1000) {
+    previousMillis = millis();
+
+    stateTop = !digitalRead(top);
+    stateFront = !digitalRead(front);
+    Serial.print("FRONT: ");
+    Serial.println(stateFront);
+    Serial.print("TOP  : ");
+    Serial.println(stateTop);
+    Serial.println("------------------------");
         
     if (stateFront == false && stateTop == false) {
+      client.publish(strTopicTop.c_str(), ( stateTop ? "1":"0" ) );
+      client.publish(strTopicFront.c_str(), ( stateTop ? "1":"0" ) ); 
+
       delay(2000);
+      digitalWrite(LED,false);
       Serial.println("Sleep");
+      // set max sleeptime
       system_deep_sleep(4294967295);
     }
 
