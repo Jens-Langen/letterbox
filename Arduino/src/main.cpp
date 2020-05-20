@@ -154,7 +154,7 @@ void loop() {
     Serial.println(stateTop);
     Serial.println("------------------------");
     client.publish(strTopicTop.c_str(), ( stateTop ? "1":"0" ) );
-    client.publish(strTopicFront.c_str(), ( stateTop ? "1":"0" ) ); 
+    client.publish(strTopicFront.c_str(), ( stateFront ? "1":"0" ) ); 
  
     unsigned int raw=0;
     float volt=0.0;
@@ -185,7 +185,7 @@ void loop() {
         
     if (stateFront == false && stateTop == false) {
       client.publish(strTopicTop.c_str(), ( stateTop ? "1":"0" ) );
-      client.publish(strTopicFront.c_str(), ( stateTop ? "1":"0" ) ); 
+      client.publish(strTopicFront.c_str(), ( stateFront ? "1":"0" ) ); 
 
       delay(2000);
       digitalWrite(LED,false);
